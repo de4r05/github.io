@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スプラBAN/PICKツール 完全版</title>
+
+<style>
+body{
+    font-family:sans-serif;
+    max-width:1200px;
+    margin:auto;
+    padding:20px;
+}
+
+.section{
+    border:1px solid #ccc;
+    padding:12px;
+    margin-bottom:20px;
+    border-radius:10px;
+}
+
+select{
+    padding:5px;
+    margin:3px;
+}
+
+.playerBox{ margin-bottom:8px; }
+
+.weaponCard{
+    width:120px;          /* ← 180 → 120に縮小 */
+    border:1px solid #ccc;
+    border-radius:8px;
+    padding:6px;          /* ← 少し詰める */
+    margin:4px;           /* ← 間隔も縮小 */
+    display:inline-block;
+    vertical-align:top;
+    text-align:center;
+    background:white;
+    font-size:12px;       /* ← 文字も少し小さく */
+}
+
+.weaponCard img{
+    width:90px;           /* ← 120 → 90 */
+    height:90px;
+    object-fit:contain;
+}
+
+.actions button{
+    margin:1px;
+    padding:2px 4px;      /* ← ボタン小さく */
+    font-size:11px;
+}
+
+.weaponCard.ban{ background:#ff0000; }
+.weaponCard.teamA{ background:#1E90FF; }
+.weaponCard.teamB{ background:#FFA500; }
+
+
+.summaryItem{ margin-bottom:4px; }
+
+.grid{
+    display:flex;
+    flex-wrap:wrap;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🎮 スプラバンピックツール</h1>
+
+<div id="registerSection" class="section">
+<h2>① ブキ登録</h2>
+
+<h3>主催（4）</h3>
+<div id="hostInputs"></div>
+
+<h3>参加者（8×3）</h3>
+<div id="playerInputs"></div>
+
+<br>
+<button onclick="startDraft()">ドラフト開始</button>
+</div>
+
+<div id="draftSection" class="section" style="display:none;">
+<h2>② バンピック</h2>
+
+<div style="display:flex;gap:20px;">
+
+<div style="flex:3;">
+<div id="weaponGrid" class="grid"></div>
+</div>
+
+<div style="flex:1;">
+<h3>🚫BAN</h3>
+<div id="banList"></div>
+
+<h3>🟢Team A</h3>
+<div id="teamAList"></div>
+
+<h3>🔵Team B</h3>
+<div id="teamBList"></div>
+</div>
+
+</div>
+</div>
+
+<script>
+
+/* =========================
+   ⚠️ ここにあなたのデータを貼る
+========================= */
+
+// ↓↓↓ ここに WEAPON_IMAGES をそのまま貼る ↓↓↓
+const WEAPON_IMAGES = {
+  "ボールドマーカー": "https://i.imgur.com/zHCOaYG.png",
+  "ボールドマーカーネオ": "https://i.imgur.com/1sreHzt.png",
+  "わかばシューター": "https://i.imgur.com/ccxyqpZ.png",
+ "もみじシューター": "https://i.imgur.com/qWNl8cS.png",
+  "シャープマーカー":"https://i.imgur.com/ZNu9weG.png",
+  "シャープマーカーネオ": "https://i.imgur.com/aAsa9Tf.png",
+  "シャープマーカーGECK": "https://i.imgur.com/FjMkLKP.png",
+  "プロモデラーMG": "https://i.imgur.com/OZCMc1N.png",
+  "プロモデラーRG": "https://i.imgur.com/AxMjDrW.png",
+  "プロモデラー彩": "https://i.imgur.com/jkwgmcL.png",
+  "スプラシューター": "https://i.imgur.com/YzIKdsl.png",
+  "スプラシューターコラボ": "https://i.imgur.com/kRhCaMM.png",
+  "スプラシューター煌": "https://i.imgur.com/R5i9Pza.png",
+  ".52ガロン": "https://i.imgur.com/lIZ8JVi.png",
+  ".52ガロンデコ": "https://i.imgur.com/Uy6Nguk.png",
+  "N-ZAP85": "https://i.imgur.com/g2ALbA8.png",
+  "N-ZAP89": "https://i.imgur.com/3qo8r0n.png",
+  "プライムシューター": "https://i.imgur.com/I06OdAh.png",
+  "プライムシューターコラボ": "https://i.imgur.com/dfAQJv2.png",
+  "プライムシューターFRZN": "https://i.imgur.com/Z7p6djc.png",
+  ".96ガロン": "https://i.imgur.com/EqZGjAh.png",
+  ".96ガロンデコ": "https://i.imgur.com/O1zdzlV.png",
+  ".96ガロン爪": "https://i.imgur.com/ljmPPKS.png",
+  "ジェットスイーパー": "https://i.imgur.com/hlf5uFQ.png",
+  "ジェットスイーパーカスタム": "https://i.imgur.com/m7WIKRf.png",
+  "ジェットスイーパーCOBR": "https://i.imgur.com/T9kDjOO.png",
+  "スペースシューター": "https://i.imgur.com/bDDCa1B.png",
+  "スペースシューターコラボ": "https://i.imgur.com/YiBjezG.png",
+  "L3リールガン": "https://i.imgur.com/Fuu2A2D.png",
+  "L3リールガンD": "https://i.imgur.com/CdXFrJK.png",
+  "L3リールガン箔": "https://i.imgur.com/Ongl4AN.png",
+  "H3リールガン": "https://i.imgur.com/A4XDKES.png",
+  "H3リールガンD": "https://i.imgur.com/r214aXt.png",
+  "H3リールガンSNAK": "https://i.imgur.com/VZXJeJj.png",
+  "ボトルガイザー": "https://i.imgur.com/o5e9l5p.png",
+  "ボトルガイザーフォイル": "https://i.imgur.com/OfDBfZP.png",
+  "カーボンローラー": "https://i.imgur.com/m6CVdC1.png",
+  "カーボンローラーデコ": "https://i.imgur.com/7OVLbwg.png",
+  "カーボンローラーANGL": "https://i.imgur.com/rEkmmFc.png",
+  "スプラローラー": "https://i.imgur.com/jEJCaxO.png",
+  "スプラローラーコラボ": "https://i.imgur.com/hZzL1pI.png",
+  "ダイナモローラー": "https://i.imgur.com/QgLTtnW.png",
+  "ダイナモローラーテスラ": "https://i.imgur.com/HQWkoVD.png",
+  "ダイナモローラー冥": "https://i.imgur.com/pxUrCH4.png",
+  "ヴァリアブルローラー": "https://i.imgur.com/O68hoCF.png",
+  "ヴァリアブルローラーフォイル": "https://i.imgur.com/qyzZz2h.png",
+  "ワイドローラー": "https://i.imgur.com/2vfZldq.png",
+  "ワイドローラーコラボ": "https://i.imgur.com/HzBqihn.png",
+  "ワイドローラー惑": "https://i.imgur.com/ddNiDxI.png",
+  "スクイックリンα": "https://i.imgur.com/LIYoPH5.png",
+  "スクイックリンβ": "https://i.imgur.com/M36nzIf.png",
+  "スプラチャージャー": "https://i.imgur.com/knr4oIm.png",
+  "スプラチャージャーコラボ": "https://i.imgur.com/QpSs72T.png",
+  "スプラチャージャーFRST": "https://i.imgur.com/pN0PEJj.png",
+  "スプラスコープ": "https://i.imgur.com/jZUz7Yz.png",
+  "スプラスコープコラボ": "https://i.imgur.com/yFLzIg7.png",
+  "スプラスコープFRST": "https://i.imgur.com/Y0RoMZN.png", 
+  "リッター4K": "https://i.imgur.com/J4000V5.png",
+  "リッター4Kカスタム": "https://i.imgur.com/53jGGw8.png",
+  "4Kスコープ": "https://i.imgur.com/yF2KK56.png",
+  "4Kスコープカスタム": "https://i.imgur.com/9d4U72P.png",
+  "14式竹筒銃・甲": "https://i.imgur.com/mzoNPp2.png",
+  "14式竹筒銃・乙": "https://i.imgur.com/hXhXvIs.png",
+  "ソイチューバー": "https://i.imgur.com/yHi1Eoq.png",
+  "ソイチューバーカスタム": "https://i.imgur.com/cCas8P9.png",
+  "R-PEN/5H": "https://i.imgur.com/EHxhQRA.png",
+  "R-PEN/5B": "https://i.imgur.com/mrvsN40.png",
+  "バケットスロッシャー": "https://i.imgur.com/pHtzwBj.png",
+  "バケットスロッシャーデコ": "https://i.imgur.com/dWl8aug.png",
+  "ヒッセン": "https://i.imgur.com/DFxtnPT.png",
+  "ヒッセン・ヒュー": "https://i.imgur.com/0ndQO4G.png",
+  "ヒッセンASH": "https://i.imgur.com/w4O6Ksi.png",
+  "スクリュースロッシャー": "https://i.imgur.com/ycVUhRH.png",
+  "スクリュースロッシャーネオ": "https://i.imgur.com/iKEkt4j.png",
+  "オーバーフロッシャー": "https://i.imgur.com/IpEdSyd.png",
+  "オーバーフロッシャーデコ": "https://i.imgur.com/T9YwUnv.png",
+  "エクスプロッシャー": "https://i.imgur.com/TeHWzuQ.png",
+  "エクスプロッシャーカスタム": "https://i.imgur.com/LRAoNmO.png",
+  "モップリン": "https://i.imgur.com/lHUjOU4.png",
+  "モップリンD": "https://i.imgur.com/EnA8Seh.png",
+  "モップリン角": "https://i.imgur.com/HftlT0s.png",
+  "スプラスピナー": "https://i.imgur.com/apW5ugH.png",
+  "スプラスピナーコラボ": "https://i.imgur.com/qv4s1Gy.png",
+  "スプラスピナーPYTN": "https://i.imgur.com/9JkSIYP.png",
+  "バレルスピナー": "https://i.imgur.com/DYWd9SR.png",
+  "バレルスピナーデコ": "https://i.imgur.com/dg2x5fQ.png",
+  "ハイドラント": "https://i.imgur.com/Ur5zsq9.png",
+  "ハイドラントカスタム": "https://i.imgur.com/sNNVbRq.png",
+  "ハイドラント圧": "https://i.imgur.com/ovH1aqq.png",
+  "クーゲルシュライバー": "https://i.imgur.com/gi5JifW.png",
+  "クーゲルシュライバー・ヒュー": "https://i.imgur.com/BlUnTaX.png",
+  "ノーチラス47": "https://i.imgur.com/PeEqLZL.png",
+  "ノーチラス79": "https://i.imgur.com/GwaDRhZ.png",
+  "イグザミナー": "https://i.imgur.com/xlCSuEg.png",
+  "イグザミナー・ヒュー": "https://i.imgur.com/PdXJs6q.png",
+  "スパッタリー": "https://i.imgur.com/P2lXew9.png",
+  "スパッタリー・ヒュー": "https://i.imgur.com/iNfSOeQ.png",
+  "スパッタリーOWL": "https://i.imgur.com/6IGekgq.png",
+  "スプラマニューバー": "https://i.imgur.com/27YruI8.png",
+  "スプラマニューバーコラボ": "https://i.imgur.com/LQNKJrn.png",
+  "スプラマニューバー耀": "https://i.imgur.com/GZG89Yq.png",
+  "ケルビン525": "https://i.imgur.com/jU8tbm3.png",
+  "ケルビン525デコ": "https://i.imgur.com/Pe1Sjfb.png",
+  "デュアルスイーパー": "https://i.imgur.com/xv9C8uG.png",
+  "デュアルスイーパーカスタム": "https://i.imgur.com/lnqYdHp.png",
+  "デュアルスイーパー蹄": "https://i.imgur.com/dmvug5h.png",
+  "クアッドホッパーブラック": "https://i.imgur.com/DlLWtjg.png",
+  "クアッドホッパーホワイト": "https://i.imgur.com/cimYfVy.png",
+  "ガエンFF": "https://i.imgur.com/V4hVT8c.png",
+  "ガエンFFカスタム": "https://i.imgur.com/2eKVGoG.png",
+  "パラシェルター": "https://i.imgur.com/gMX36xQ.png",
+  "パラシェルターソレーラ": "https://i.imgur.com/l9ycJHf.png",
+  "キャンピングシェルター": "https://i.imgur.com/SribLIb.png",
+  "キャンピングシェルターソレーラ": "https://i.imgur.com/R4azq5F.png",
+  "キャンピングシェルターCREM": "https://i.imgur.com/qDLpGC2.png",
+  "スパイガジェット": "https://i.imgur.com/8EETtwl.png",
+  "スパイガジェットソレーラ": "https://i.imgur.com/jMFWVg3.png",
+  "スパイガジェット繚": "https://i.imgur.com/t6kGztL.png",
+  "24式張替傘・甲": "https://i.imgur.com/rwsDXzZ.png",
+  "24式張替傘・乙": "https://i.imgur.com/L3WMkxJ.png",
+  "ノヴァブラスター": "https://i.imgur.com/b1r4K8F.png",
+  "ノヴァブラスターネオ": "https://i.imgur.com/hX1cv37.png",
+  "ホットブラスター": "https://i.imgur.com/pzvDUUO.png",
+  "ホットブラスターカスタム": "https://i.imgur.com/sk00E5W.png",
+  "ホットブラスター艶": "https://i.imgur.com/2HP4UAx.png",
+  "ロングブラスター": "https://i.imgur.com/8THhjIe.png",
+  "ロングブラスターカスタム": "https://i.imgur.com/NyxN5Ao.png",
+  "クラッシュブラスター": "https://i.imgur.com/PCQ2Oj1.png",
+  "クラッシュブラスターネオ": "https://i.imgur.com/KPI0KIv.png",
+  "ラピットブラスター": "https://i.imgur.com/RQpbOCH.png",
+  "ラピットブラスターデコ": "https://i.imgur.com/xRP4wjO.png",
+  "Rブラスターエリート": "https://i.imgur.com/tM876TT.png",
+  "Rブラスターエリートデコ": "https://i.imgur.com/C5iJpt8.png",
+  "RブラスターエリートWNTR": "https://i.imgur.com/gjWurZO.png",
+  "S-BLAST92": "https://i.imgur.com/AF7lqQD.png",
+  "S-BLAST91": "https://i.imgur.com/zIJbMrD.png",
+  "パブロ": "https://i.imgur.com/I39I7Os.png",
+  "パブロ・ヒュー": "https://i.imgur.com/sij11Kj.png",
+  "ホクサイ": "https://i.imgur.com/bgKSCYc.png",
+  "ホクサイ・ヒュー": "https://i.imgur.com/UeZu5Jb.png",
+  "ホクサイ彗": "https://i.imgur.com/Eg92e0C.png",
+  "フィンセント": "https://i.imgur.com/MIxOfw5.png",
+  "フィンセント・ヒュー": "https://i.imgur.com/kk8vZDN.png",
+  "フィンセントBRNZ": "https://i.imgur.com/rGuhurz.png",
+  "トライストリンガー": "https://i.imgur.com/Wmi8HbU.png",
+  "トライストリンガーコラボ": "https://i.imgur.com/HUjl58f.png",
+  "トライストリンガー燈": "https://i.imgur.com/SkC1sIh.png",
+  "LACT-450": "https://i.imgur.com/q6k7NII.png",
+  "LACT-450デコ": "https://i.imgur.com/3qSaoln.png",
+  "LACT-450MILK": "https://i.imgur.com/clkd4BE.png",
+  "フルイドV": "https://i.imgur.com/rk2xRWc.png",
+  "フルイドVカスタム": "https://i.imgur.com/IX02fMo.png",
+  "ジムワイパー": "https://i.imgur.com/qmkclV9.png",
+  "ジムワイパー・ヒュー": "https://i.imgur.com/RGlHyXu.png",
+  "ジムワイパー封": "https://i.imgur.com/Pr7txWv.png",
+  "ドライブワイパー": "https://i.imgur.com/ScMXem9.png",
+  "ドライブワイパーデコ": "https://i.imgur.com/AWWCvKm.png",
+  "ドライブワイパーRUST": "https://i.imgur.com/Ks1j8m1.png",
+  "デンタルワイパーミント": "https://i.imgur.com/jO2Fs1k.png",
+  "デンタルワイパースミ": "https://i.imgur.com/EsCF9xz.png"
+
+};
+
+// ↓↓↓ ここに WEAPON_POOL をそのまま貼る ↓↓↓
+const WEAPON_POOL = [
+"ボールドマーカー",
+"ボールドマーカーネオ",
+"わかばシューター",
+"もみじシューター",
+"シャープマーカー",
+"シャープマーカーネオ",
+"シャープマーカーGECK",
+"プロモデラーMG",
+"プロモデラーRG",
+"プロモデラー彩",
+"スプラシューター",
+"スプラシューターコラボ",
+"スプラシューター煌",
+".52ガロン",
+".52ガロンデコ",
+"N-ZAP85",
+"N-ZAP89",
+"プライムシューター",
+"プライムシューターコラボ",
+"プライムシューターFRZN",
+".96ガロン", 
+".96ガロンデコ",
+".96ガロン爪",
+"ジェットスイーパー",
+"ジェットスイーパーカスタム",
+"ジェットスイーパーCOBR",
+"スペースシューター",
+"スペースシューターコラボ",
+"L3リールガン",
+"L3リールガンD",
+"L3リールガン箔",
+"H3リールガン",
+"H3リールガンD",
+"H3リールガンSNAK",
+"ボトルガイザー",
+"ボトルガイザーフォイル",
+"カーボンローラー",
+"カーボンローラーデコ",
+"カーボンローラー",
+"カーボンローラーANGL",
+"スプラローラー",
+"スプラローラーコラボ",
+"ダイナモローラー",
+"ダイナモローラーテスラ",
+"ダイナモローラー冥",
+"ヴァリアブルローラー",
+"ヴァリアブルローラーフォイル",
+"ワイドローラー",
+"ワイドローラーコラボ",
+"ワイドローラー惑",
+"スクイックリンα",
+"スクイックリンβ",
+"スプラチャージャー",
+"スプラチャージャーコラボ",
+"スプラチャージャーFRST",
+"スプラスコープ",
+"スプラスコープコラボ",
+"スプラスコープFRST",
+"リッター4K",
+"リッター4Kカスタム",
+"4Kスコープ",
+"4Kスコープカスタム",
+"14式竹筒銃・甲",
+"14式竹筒銃・乙",
+"ソイチューバー",
+"ソイチューバーカスタム",
+"R-PEN/5H",
+"R-PEN/5B",
+"バケットスロッシャー",
+"バケットスロッシャーデコ",
+"ヒッセン",
+"ヒッセン・ヒュー",
+"ヒッセンASH",
+"スクリュースロッシャー",
+"スクリュースロッシャーネオ",
+"オーバーフロッシャー",
+"オーバーフロッシャーデコ",
+"エクスプロッシャー",
+"エクスプロッシャーカスタム",
+"モップリン",
+"モップリンD",
+"モップリン角",
+"スプラスピナー",
+"スプラスピナーコラボ",
+"スプラスピナーPYTN",
+"バレルスピナー",
+"バレルスピナーデコ",
+"ハイドラント",
+"ハイドラントカスタム",
+"ハイドラント圧",
+"クーゲルシュライバー",
+"クーゲルシュライバー・ヒュー",
+"ノーチラス47",
+"ノーチラス79",
+"イグザミナー",
+"イグザミナー・ヒュー",
+"スパッタリー",
+"スパッタリー・ヒュー",
+"スパッタリーOWL",
+"スプラマニューバー",
+"スプラマニューバーコラボ",
+"スプラマニューバー耀",
+"ケルビン525",
+"ケルビン525デコ",
+"デュアルスイーパー",
+"デュアルスイーパーカスタム",
+"デュアルスイーパー蹄",
+"クアッドホッパーブラック",
+"クアッドホッパーホワイト",
+"ガエンFF",
+"ガエンFFカスタム",
+"パラシェルター",
+"パラシェルターソレーラ",
+"キャンピングシェルター",
+"キャンピングシェルターソレーラ",
+"キャンピングシェルターCREM",
+"スパイガジェット",
+"スパイガジェットソレーラ",
+"スパイガジェット繚",
+"24式張替傘・甲",
+"24式張替傘・乙",
+"ノヴァブラスター",
+"ノヴァブラスターネオ",
+"ホットブラスター",
+"ホットブラスターカスタム",
+"ホットブラスター艶",
+"ロングブラスター",
+"ロングブラスターカスタム",
+"クラッシュブラスター",
+"クラッシュブラスターネオ",
+"ラピットブラスター",
+"ラピットブラスターデコ",
+"Rブラスターエリート",
+"Rブラスターエリートデコ",
+"RブラスターエリートWNTR",
+"S-BLAST92",
+"S-BLAST91",
+"パブロ",
+"パブロ・ヒュー",
+"ホクサイ",
+"ホクサイ・ヒュー",
+"ホクサイ彗",
+"フィンセント",
+"フィンセント・ヒュー",
+"フィンセントBRNZ",
+"トライストリンガー",
+"トライストリンガーコラボ",
+"トライストリンガー燈",
+"LACT-450",
+"LACT-450デコ",
+"LACT-450MILK",
+"フルイドV",
+"フルイドVカスタム",
+"ジムワイパー",
+"ジムワイパー・ヒュー",
+"ジムワイパー封",
+"ドライブワイパー",
+"ドライブワイパーデコ",
+"ドライブワイパーRUST",
+"デンタルワイパーミント",
+"デンタルワイパースミ"
+
+];
+
+/* ========================= */
+
+let hostWeapons = Array(4).fill("");
+let playerWeapons = Array(8).fill(null).map(()=>Array(3).fill(""));
+
+let allWeapons = [];
+let weaponState = {};
+
+function renderInputs(){
+
+const hostDiv = document.getElementById("hostInputs");
+hostDiv.innerHTML="";
+
+for(let i=0;i<4;i++){
+
+let html = `<select onchange="hostWeapons[${i}]=this.value"><option value="">選択</option>`;
+
+WEAPON_POOL.forEach(w=>{
+html += `<option value="${w}">${w}</option>`;
+});
+
+html += "</select>";
+hostDiv.innerHTML += html;
+
+}
+
+const playerDiv = document.getElementById("playerInputs");
+playerDiv.innerHTML="";
+
+for(let i=0;i<8;i++){
+playerDiv.innerHTML += `<div class="playerBox">参加者${i+1}<br>`;
+
+for(let j=0;j<3;j++){
+
+let html = `<select onchange="playerWeapons[${i}][${j}]=this.value"><option value="">武器</option>`;
+
+WEAPON_POOL.forEach(w=>{
+html += `<option value="${w}">${w}</option>`;
+});
+
+html += "</select>";
+playerDiv.innerHTML += html;
+
+}
+
+playerDiv.innerHTML += "</div>";
+}
+
+}
+
+function startDraft(){
+
+allWeapons = [];
+
+hostWeapons.forEach(w=>{ if(w && !allWeapons.includes(w)) allWeapons.push(w); });
+playerWeapons.forEach(p=>p.forEach(w=>{ if(w && !allWeapons.includes(w)) allWeapons.push(w); }));
+
+document.getElementById("registerSection").style.display="none";
+document.getElementById("draftSection").style.display="block";
+
+renderDraft();
+
+}
+
+function setState(w,s){
+weaponState[w] = weaponState[w] === s ? "" : s;
+renderDraft();
+}
+
+function renderDraft(){
+
+const grid = document.getElementById("weaponGrid");
+grid.innerHTML="";
+
+allWeapons.forEach(w=>{
+
+const card = document.createElement("div");
+card.className="weaponCard";
+
+if(weaponState[w]==="ban") card.classList.add("ban");
+if(weaponState[w]==="A") card.classList.add("teamA");
+if(weaponState[w]==="B") card.classList.add("teamB");
+
+card.innerHTML=`
+<img src="${WEAPON_IMAGES[w]||''}">
+<div><b>${w}</b></div>
+<div class="actions">
+<button onclick="setState('${w}','ban')">🚫</button>
+<button onclick="setState('${w}','A')">A</button>
+<button onclick="setState('${w}','B')">B</button>
+</div>
+`;
+
+grid.appendChild(card);
+
+});
+
+updateSummary();
+
+}
+
+function updateSummary(){
+
+let ban=[],a=[],b=[];
+
+Object.keys(weaponState).forEach(w=>{
+if(weaponState[w]==="ban") ban.push(w);
+if(weaponState[w]==="A") a.push(w);
+if(weaponState[w]==="B") b.push(w);
+});
+
+document.getElementById("banList").innerHTML = ban.map(x=>`<div class="summaryItem">${x}</div>`).join("");
+document.getElementById("teamAList").innerHTML = a.map(x=>`<div class="summaryItem">${x}</div>`).join("");
+document.getElementById("teamBList").innerHTML = b.map(x=>`<div class="summaryItem">${x}</div>`).join("");
+
+}
+
+renderInputs();
+
+</script>
+
+</body>
+</html>
